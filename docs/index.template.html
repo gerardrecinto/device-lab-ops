@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device Lab Ops | One healthy device per job</title>
+<meta name="description" content="A device farm pool for an ML hardware lab: leases with expiry, health-gated acquire, quarantine, NFS-safe host checks, Splunk events, a REST API and a capacity planner. Python standard library only.">
+<link rel="canonical" href="https://gerardrecinto.github.io/device-lab-ops/">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0B0F14" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F5F6F8" media="(prefers-color-scheme: light)">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Device Lab Ops: one healthy device per job">
+<meta property="og:description" content="Leases, health gates, quarantine, host checks and a capacity planner for a device farm.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect x=%272%27 y=%272%27 width=%2712%27 height=%2712%27 rx=%272%27 fill=%27%2338bdf8%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F14;--fg:#E6EAF0;--mut:#9AA4B5;--line:#1C2430;--card:#111823;--a:#38bdf8;--b:#34d399;--bad:#f87171}
+@media(prefers-color-scheme:light){:root{--bg:#F5F6F8;--fg:#0F1520;--mut:#566074;--line:#DCE0E8;--card:#fff;--a:#0369a1;--b:#047857;--bad:#b91c1c}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 Inter,-apple-system,system-ui,sans-serif}
+main{max-width:880px;margin:0 auto;padding:0 20px 80px}
+header{padding:72px 0 28px}
+h1{font-size:clamp(2.1rem,6vw,3.4rem);line-height:1.1;margin:0 0 16px;letter-spacing:-.02em;font-weight:800}
+h1 span{color:var(--a)}
+h2{font-size:1.35rem;margin:56px 0 12px;letter-spacing:-.01em}
+p{margin:0 0 14px;color:var(--mut)}p strong,li strong{color:var(--fg)}
+.lead{font-size:1.15rem;color:var(--fg);max-width:44em}
+a{color:var(--a)}
+nav{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+nav a{padding:9px 16px;border:1px solid var(--line);border-radius:8px;text-decoration:none;font-weight:600;font-size:.92rem;color:var(--fg)}
+nav a.primary{background:var(--a);border-color:var(--a);color:#04121d}
+pre,code{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace}
+pre{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow-x:auto;font-size:.84rem;line-height:1.6;margin:0 0 14px}
+code{font-size:.9em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card h3{margin:0 0 6px;font-size:1rem}.card p{margin:0;font-size:.93rem}
+.plan{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+label{display:block;font-size:.8rem;color:var(--mut);font-weight:600}
+input{width:100%;margin-top:4px;padding:8px 10px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;font:inherit}
+.out{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.out div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.out b{display:block;font-size:1.7rem;color:var(--b);line-height:1.2}.out span{font-size:.8rem;color:var(--mut)}
+.bad{color:var(--bad)}
+ul{color:var(--mut);padding-left:20px}li{margin-bottom:6px}
+footer{margin-top:64px;color:var(--mut);font-size:.88rem;border-top:1px solid var(--line);padding-top:20px}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>One <span>healthy</span> device per job.</h1>
+<p class="lead">A device farm pool for an ML hardware lab. Jobs lease a device over a REST API. The pool probes it first, expires the lease if the job crashes, quarantines a device that keeps failing, and stops handing out devices from a host whose NFS mount hangs.</p>
+<nav>
+<a class="primary" href="https://github.com/gerardrecinto/device-lab-ops">Source on GitHub</a>
+<a href="#demo">Real output</a>
+<a href="#planner">Capacity planner</a>
+</nav>
+</header>
+
+<section>
+<div class="grid">
+<div class="card"><h3>Leases that expire</h3><p>One active lease per device, enforced by a partial unique index in SQLite. A crashed job loses its device when the lease runs out.</p></div>
+<div class="card"><h3>Health-gated acquire</h3><p>Every candidate is probed before it is handed out. A failing device is skipped and sorts last. Three failures in a row quarantine it until a person returns it.</p></div>
+<div class="card"><h3>Hosts, not just devices</h3><p>Disk space and NFS mounts are checked on the x86 hosts. A stale mount would hang <code>stat</code>, so the check runs in a child process with a timeout.</p></div>
+<div class="card"><h3>Splunk and Prometheus</h3><p>Probe results become Splunk HEC events (file or direct POST). <code>/metrics</code> serves pool counts in Prometheus text format.</p></div>
+</div>
+</section>
+
+<section id="demo">
+<h2>Real output</h2>
+<p>This is the output of <code>devicelab demo</code>, run on a fake clock so it is identical every time. A test fails if this page drifts from the code.</p>
+<pre><!--DEMO--></pre>
+</section>
+
+<section id="planner">
+<h2>Capacity planner for the next hardware cycle</h2>
+<p>Same formula as <code>devicelab plan</code>, and a test checks the two agree. Working devices = jobs per day x minutes x peak / (1440 x target use). Spares are added on top, then hosts, then one spare host.</p>
+<div class="plan">
+<label>Jobs per day<input id="jobs" type="number" value="600" min="0"></label>
+<label>Minutes per job<input id="mins" type="number" value="25" min="0"></label>
+<label>Target use (0-1)<input id="util" type="number" value="0.7" step="0.05"></label>
+<label>Peak factor<input id="peak" type="number" value="2" step="0.5" min="1"></label>
+<label>Spare devices %<input id="spare" type="number" value="5" min="0"></label>
+<label>Devices per host<input id="dph" type="number" value="4" min="1"></label>
+<label>Spare hosts<input id="sh" type="number" value="1" min="0"></label>
+<label>Devices on hand<input id="have" type="number" value="8" min="0"></label>
+</div>
+<div class="out" id="out" aria-live="polite"></div>
+</section>
+
+<section>
+<h2>Run it</h2>
+<pre>git clone https://github.com/gerardrecinto/device-lab-ops
+cd device-lab-ops &amp;&amp; pip install -e .
+devicelab demo
+devicelab init &amp;&amp; devicelab lease job-1 --model gen1
+devicelab serve   # REST API on 127.0.0.1:8080</pre>
+<h2>What it is not</h2>
+<ul>
+<li><strong>Not run on physical hardware.</strong> The tests and demo use a simulated adapter. The shell adapter runs any command you give it (for example <code>adb -s {serial} get-state</code>) and is covered by tests with stand-in commands.</li>
+<li><strong>One SQLite file, one process group.</strong> Fine for one lab. A multi-site setup would move the same schema to PostgreSQL.</li>
+<li><strong>No built-in scheduler.</strong> Jobs ask for a device; they do not queue.</li>
+</ul>
+</section>
+<footer>MIT licensed. Built by Gerard Recinto. <a href="https://github.com/gerardrecinto/device-lab-ops">github.com/gerardrecinto/device-lab-ops</a></footer>
+</main>
+<script src="planner.js"></script>
+<script>
+(function(){
+  var ids=['jobs','mins','util','peak','spare','dph','sh','have'];
+  function v(id){return parseFloat(document.getElementById(id).value)}
+  function draw(){
+    var r=plan({jobsPerDay:v('jobs'),jobMinutes:v('mins'),targetUtil:v('util'),peak:v('peak'),sparePct:v('spare'),devicesPerHost:v('dph'),spareHosts:v('sh'),existing:v('have')});
+    var o=document.getElementById('out');
+    if(!r){o.innerHTML='<p class="bad">Check the inputs: use 0 to 1 target use, peak 1 or more, devices per host 1 or more, spare below 100.</p>';return}
+    o.innerHTML=[['working devices',r.working_devices],['with spares',r.devices],['hosts',r.hosts],['to buy',r.to_buy]].map(function(x){return '<div><b>'+x[1]+'</b><span>'+x[0]+'</span></div>'}).join('');
+  }
+  ids.forEach(function(i){document.getElementById(i).addEventListener('input',draw)});draw();
+})();
+</script>
+</body>
+</html>

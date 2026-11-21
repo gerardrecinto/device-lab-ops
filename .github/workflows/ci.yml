@@ -1,0 +1,33 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests scripts
+      - run: python -m pytest -q
+  container:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t devicelab .
+      - name: Lease a device through the running container
+        run: |
+          docker run -d --name lab -p 8080:8080 devicelab
+          for i in $(seq 1 20); do curl -fsS localhost:8080/healthz && break || sleep 1; done
+          curl -fsS -X POST localhost:8080/leases -d '{"owner":"ci","model":"gen1"}' | tee lease.json
+          grep -q '"serial": "SN-0001"' lease.json
+          curl -fsS localhost:8080/metrics | grep 'devicelab_devices{state="leased"} 1'

@@ -1,0 +1,28 @@
+[project]
+name = "device-lab-ops"
+version = "0.1.0"
+description = "Device farm pool for an ML hardware lab: leases with expiry, health-gated acquire, quarantine, host and NFS checks, Splunk events, a REST API and a capacity planner."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+devicelab = "devicelab.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 125
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

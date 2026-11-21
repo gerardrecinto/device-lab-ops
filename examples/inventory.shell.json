@@ -1,0 +1,10 @@
+{
+  "adapter": {"type": "shell", "probe": "adb -s {serial} get-state", "reboot": "adb -s {serial} reboot", "timeout": 10},
+  "hosts": [
+    {"name": "lab-host-01", "site": "san-diego", "max_devices": 8,
+     "checks": {"disk_path": "/", "min_free_pct": 10, "mounts": ["/mnt/artifacts"]}}
+  ],
+  "devices": [
+    {"serial": "REPLACE-WITH-REAL-SERIAL", "host": "lab-host-01", "model": "gen2", "tags": ["int8"]}
+  ]
+}

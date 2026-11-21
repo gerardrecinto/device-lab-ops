@@ -1,0 +1,19 @@
+{
+  "adapter": {"type": "sim", "fail": {"SN-0007": 99}},
+  "hosts": [
+    {"name": "x86-01", "site": "san-diego", "max_devices": 4,
+     "checks": {"disk_path": "/", "min_free_pct": 5, "mounts": []}},
+    {"name": "x86-02", "site": "san-diego", "max_devices": 4,
+     "checks": {"disk_path": "/", "min_free_pct": 5, "mounts": []}}
+  ],
+  "devices": [
+    {"serial": "SN-0001", "host": "x86-01", "model": "gen1", "tags": ["fp16"]},
+    {"serial": "SN-0002", "host": "x86-01", "model": "gen1", "tags": ["fp16"]},
+    {"serial": "SN-0003", "host": "x86-01", "model": "gen2", "tags": ["int8", "fp16"]},
+    {"serial": "SN-0004", "host": "x86-01", "model": "gen2", "tags": ["int8", "fp16"]},
+    {"serial": "SN-0005", "host": "x86-02", "model": "gen2", "tags": ["int8", "fp16"]},
+    {"serial": "SN-0006", "host": "x86-02", "model": "gen2", "tags": ["int8", "fp16"]},
+    {"serial": "SN-0007", "host": "x86-02", "model": "gen2", "tags": ["int8"]},
+    {"serial": "SN-0008", "host": "x86-02", "model": "gen2", "tags": ["int8"]}
+  ]
+}
