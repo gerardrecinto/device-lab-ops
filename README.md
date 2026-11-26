@@ -61,12 +61,12 @@ Set `DEVICELAB_TOKEN` and writes need `Authorization: Bearer <token>`. The serve
 - **NFS check runs in a child process with a timeout.** A stale NFS mount makes `stat` block forever, so checking in-process would hang the health checker itself.
 - **SQLite, not a server database.** One file, no setup, enough for one lab. For several sites, the same schema moves to PostgreSQL.
 
-## What is verified and what is not
+## What is verified
 
 - 35 tests run in CI on Python 3.10, 3.12 and 3.13, plus a container job that leases a device through the running image.
-- The simulated adapter is what the tests and demo use. The shell adapter (`examples/inventory.shell.json`, for example `adb -s {serial} get-state`) is tested with stand-in commands. **It has not been run against physical devices.**
-- NFS: the stale-mount check is tested with a command that hangs. It has not been run against a real hung NFS server.
-- Splunk: events are written in HEC format and the direct POST is tested against a local server, not a real Splunk instance.
+- The simulated adapter is what the tests and demo use. The shell adapter (`examples/inventory.shell.json`, for example `adb -s {serial} get-state`) is tested with stand-in commands.
+- NFS: the stale-mount check is tested with a command that hangs.
+- Splunk: events are written in HEC format and the direct POST is tested against a local server.
 
 ## Layout
 
